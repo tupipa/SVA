@@ -56,6 +56,15 @@ add_custom_command(TARGET clang POST_BUILD
 set_property(DIRECTORY APPEND
   PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${clang_pp})
 
+
+# Create the clang-cpp symlink in the build directory.
+set(clang_pp_cpp "${LLVM_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/clang-cpp${CMAKE_EXECUTABLE_SUFFIX}")
+add_custom_command(TARGET clang POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E ${CLANGXX_LINK_OR_COPY} "${clang_binary}" "${clang_pp_cpp}")
+
+set_property(DIRECTORY APPEND
+  PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${clang_pp_cpp})
+
 install(TARGETS clang
   RUNTIME DESTINATION bin)
 

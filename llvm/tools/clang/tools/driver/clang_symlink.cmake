@@ -25,3 +25,13 @@ message("Creating clang++ executable based on ${clang}")
 execute_process(
   COMMAND "${CMAKE_COMMAND}" -E ${CLANGXX_LINK_OR_COPY} "${clang}" "${clangxx}"
   WORKING_DIRECTORY "${bindir}")
+
+
+set(clangpp "clang-cpp${EXECUTABLE_SUFFIX}")
+
+message("Creating clang-cpp executable based on ${clang}")
+
+execute_process(
+  COMMAND "${CMAKE_COMMAND}" -E ${CLANGXX_LINK_OR_COPY} "${clang}" "${clangpp}"
+  WORKING_DIRECTORY "${bindir}")
+
