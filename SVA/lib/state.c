@@ -27,8 +27,6 @@
 #include <sva/x86.h>
 #include "thread_stack.h"
 
-#include "offsets.h" // for IC_FULL_IRET
-
 /*****************************************************************************
  * Externally Visibile Utility Functions
  ****************************************************************************/
@@ -442,12 +440,6 @@ sva_swap_integer (uintptr_t newint, uintptr_t * statep) {
    */
   struct SVAThread * oldThread = cpup->currentThread;
   sva_integer_state_t * old = &(oldThread->integerState);
-
-  /* 
-   * Setup iret flag so that the old thread will have its segmentations
-   * restored when it is scheduled back.
-   */
-  cpup->newCurrentIC->valid |= IC_FULL_IRET;
 
   /* Get a pointer to the saved state (the ID is the pointer) */
   struct SVAThread * newThread = validateThreadPointer(newint);
@@ -1022,13 +1014,12 @@ sva_reinit_icontext (void * handle, unsigned char priv, uintptr_t stackp, uintpt
   sva_icontext_t * ep = getCPUState()->newCurrentIC;
 
   /*
-   * Reset the fsbase and iret flag for tge newly forked process.
+   * Reset the fsbase for the newly forked process.
    * This is used to support the TLS.
    * 
    * Reference: exec_setregs in src/sys/amd64/amd64/machdep.c
   */
   threadp->integerState.fsbase = 0;
-  ep->valid |= IC_FULL_IRET;
 
   /*
    * Check the memory.
@@ -1371,12 +1362,6 @@ sva_init_stack (unsigned char * start_stackp,
   icontextp = integerp->currentIC = newThread->interruptContexts + maxIC - 1;
   *icontextp = *(cpup->newCurrentIC);
 
-  /* 
-   * Set flag of full iret, so that the FSBASE could be restored to CPU when
-   * the thread returns from the interrupt.
-   */
-  icontextp->valid |= IC_FULL_IRET;
-
 #if 0
   printf("Before set the return value to zero, check rax, rax = 0x%lx\n",icontextp->rax);
 #endif  
@@ -1445,8 +1430,7 @@ sva_init_stack (unsigned char * start_stackp,
  *   sva_init_fsbase() is used to initialize the TLS segment for current
  * SVAThread. The base address of TLS segment is stored in integer state 
  * struct of each thread. This value will be loaded into FSBASE MSR in CPU 
- * to take effect. This usually happens before the return of a system call 
- * and IC_FULL_IRET flag is set.
+ * to take effect. This usually happens before the return of a system call.
  * 
  * Input:
  *   base - base address of TLS (or FS) segment for the application.
@@ -1469,9 +1453,6 @@ void sva_init_fsbase(uint64_t base)
 
   /* set the base address */
   newIntState->fsbase = base;
-
-  /* set the flag to restore FSBASE before return to userland */
-  cpup->newCurrentIC->valid |= IC_FULL_IRET;
 
 }
 

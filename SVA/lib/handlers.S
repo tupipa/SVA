@@ -822,14 +822,6 @@ L22:
   cmoveq %r13, %r12
   movq %r12, IC_VALID(%rsp)
 
-  /* 
-   * Clear the IC_FULL_IRET (3rd lowest bit in IC->valid)
-   * When we return from syscall with no context switch, we do not need a 
-   * full iret (to restore FSBASE MSR)
-   */
-  andq $~IC_FULL_IRET, IC_VALID(%rsp)
-
-
 #ifdef MPX
   /* Reset the MPX bounds register for SFI checks */
   movabsq $412316860416, %rax     # imm = 0x6000000000
@@ -1032,12 +1024,25 @@ L18:
   movw %bx, %es
   movw %ax, %ds
 
-  /* test whether we need a full iret to restore FSBASE MSR */
   movq CPU_THREAD(%rbp), %rbx
-  testl	$IC_FULL_IRET, IC_VALID(%rsp)
-	jnz	full_iret
+ 
+  /* Restore %fs and fsbase.
+   * %rbx points to the thread structure which contains integer state structure
+   * %rsp points to the IC context to restore
+   */
+  movw	IC_FS(%rsp),%ax
+  movw	%ax,%fs
 
-done_full_iret:
+  /* make sure fs is valid */
+  /* Note: here fs in IC_FS should always be SVA_FS_SEL(0x13) */
+  cmpw	$SVA_FS_SEL,%ax
+  jne	invalidIC
+
+  /* restore FSBASE MSR */
+  movl	$MSR_FSBASE,%ecx
+  movl	TD_INTSTATE + IS_FSBASE(%rbx),%eax
+  movl	TD_INTSTATE + IS_FSBASE + 4(%rbx),%edx
+  wrmsr
 
   movq IC_RDI(%rsp), %rdi
   movq IC_RSI(%rsp), %rsi
@@ -1103,37 +1108,6 @@ L23:
   sysretq
 
 
-/* 
- * full_iret:
- *   a full iret to restore segmentation base before returning to the user
- * program. Currently used to restore FSBASE for TLS segment only. In the
- * future, other segments such as GSBASE can also use this routine.
- * 
- * Note: Since most of time full_iret will not be called, it is not inlined 
- * with the caller routine for better cache locality.
- * 
- */
-full_iret:
-
-  /* Restore %fs and fsbase.
-   * %rbx points to the thread structure which contains integer state structure
-   * %rsp points to the IC context to restore
-   */
-  movw	IC_FS(%rsp),%ax
-  movw	%ax,%fs
-
-  /* make sure fs is valid */ 
-  cmpw	$SVA_FS_SEL,%ax
-  jne	invalidIC /* Note: here fs in IC_FS should always be SVA_FS_SEL(0x13) */
-
-  /* restore FSBASE MSR */
-  movl	$MSR_FSBASE,%ecx
-  movl	TD_INTSTATE + IS_FSBASE(%rbx),%eax
-  movl	TD_INTSTATE + IS_FSBASE + 4(%rbx),%edx
-  wrmsr
-
-  jmp done_full_iret
- 
 /* Define the trap handlers */
 TRAP(0)
 TRAP(1)

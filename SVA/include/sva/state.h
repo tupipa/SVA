@@ -73,8 +73,6 @@ struct invoke_frame {
 /* Constants for the different Interrupt Context flags in the valid field */
 static const unsigned long IC_is_valid = 0x00000001u;
 static const unsigned long IC_can_fork = 0x00000002u;
-/* 3rd bit as IC_FULL_IRET == 0x00000004u; it is defined as macro instead,
- * since it is both used in C code and assembly code. */
 
 /*
  * Structure: icontext_t
